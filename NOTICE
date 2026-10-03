@@ -1,0 +1,15 @@
+pi-persian-rtl-bundle
+=====================
+
+This package patches files belonging to Pi
+(https://github.com/earendil-works/pi), which is distributed under its own
+license. No Pi source code is redistributed here; the patch is applied to the
+user's own installation at runtime, and a backup of every modified file is
+written before any change.
+
+The BiDi helper implementation is derived from pi-persian-rtl by powerostad
+(MIT), itself derived from pi-arabic-rtl. See the upstream package at
+https://pi.dev/packages/pi-persian-rtl.
+
+Patching another program's bundle is inherently unsupported and may break on
+any update. Use at your own risk.

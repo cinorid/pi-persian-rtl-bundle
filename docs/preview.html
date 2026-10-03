@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>pi-persian-rtl-bundle preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 675px; overflow: hidden; }
+  body {
+    background: #0b0e14;
+    font-family: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", monospace;
+    color: #c9d1d9;
+    padding: 30px 36px;
+    display: flex;
+    flex-direction: column;
+  }
+  .win {
+    background: #0f131a;
+    border: 1px solid #232a36;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .bar {
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 16px;
+    background: #131824;
+    border-bottom: 1px solid #232a36;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .d1 { background: #ff5f57; } .d2 { background: #febc2e; } .d3 { background: #28c840; }
+  .title { margin-left: 8px; font-size: 13px; color: #7d8799; }
+  .body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 17px; flex: 1; }
+  h1 { font-size: 23px; color: #e6edf3; font-weight: 700; letter-spacing: -0.2px; }
+  h1 .pkg { color: #58a6ff; }
+  .sub { font-size: 13px; color: #8b949e; margin-top: 4px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .card { border-radius: 9px; padding: 15px 17px; border: 1px solid #232a36; background: #0c1017; }
+  .card.bad { border-color: #4a2226; background: #150f11; }
+  .card.good { border-color: #1d3f2c; background: #0d1512; }
+  .hdr { font-size: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .bad .hdr { color: #f778ba; } .good .hdr { color: #56d364; }
+  .tag { font-size: 10px; padding: 1px 7px; border-radius: 20px; border: 1px solid currentColor; opacity: .85; }
+  .term { font-size: 13.5px; line-height: 1.95; color: #a9b4c2; }
+  .dim { color: #5c6673; }
+  .mono { color: #d2a8ff; }
+  .en { color: #79c0ff; }
+  .rtl { direction: rtl; unicode-bidi: isolate; text-align: right; color: #e6edf3; }
+  .rtl .en { color: #79c0ff; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .strike { text-decoration: line-through; text-decoration-color: #f778ba; }
+  .arrow { color: #484f58; }
+  .foot {
+    margin-top: auto; padding-top: 12px; border-top: 1px solid #1c222d;
+    display: flex; gap: 9px; flex-wrap: wrap; align-items: center;
+  }
+  .chip {
+    font-size: 11px; padding: 4px 11px; border-radius: 20px;
+    background: #121924; border: 1px solid #253044; color: #8b949e;
+  }
+  .chip.ok { color: #56d364; border-color: #1d3f2c; }
+  .chip.warn { color: #e3b341; border-color: #3d3418; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 13px; }
+  .lbl { font-size: 11px; color: #6e7681; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 7px; }
+</style>
+</head>
+<body>
+  <div class="win">
+    <div class="bar">
+      <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+      <span class="title">pi — persian / rtl</span>
+    </div>
+
+    <div class="body">
+      <div>
+        <h1><span class="pkg">pi-persian-rtl-bundle</span></h1>
+        <div class="sub">Persian / Farsi RTL for Pi 1.0+ — patches the file Pi actually executes, not the unused <span class="mono">node_modules</span> copy.</div>
+      </div>
+
+      <div class="cols">
+        <div class="card bad">
+          <div class="hdr"><span>✗</span><span>pi-persian-rtl</span><span class="tag">no effect</span></div>
+          <div class="term">
+            <div class="dim">patches <span class="strike">node_modules/…/pi-tui/dist</span></div>
+            <div class="dim">but Pi 1.0 runs:</div>
+            <div class="mono">dist/bundle/chunks/*.js</div>
+            <div style="margin-top:7px" class="dim">→ check reports “patched”</div>
+            <div class="dim">→ nothing changes on screen</div>
+          </div>
+        </div>
+
+        <div class="card good">
+          <div class="hdr"><span>✓</span><span>pi-persian-rtl-bundle</span><span class="tag">works</span></div>
+          <div class="term">
+            <div class="dim">patches the real bundle chunk</div>
+            <div class="mono">dist/bundle/chunks/chunk-*.js</div>
+            <div style="margin-top:7px" class="dim">→ RLI/PDI isolation</div>
+            <div class="dim">→ ANSI + ZWNJ preserved</div>
+            <div class="dim">→ caret corrected for padding</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="lbl">Rendered output</div>
+        <div class="term" style="background:#0c1017;border:1px solid #232a36;border-radius:9px;padding:12px 15px;">
+          <div class="rtl">۱. Pi یک دستیار کدنویسی سریع و قابل‌اعتماد است</div>
+          <div class="rtl">۲. مسیر پروژه: <span class="en">C:\Users\ahmad\pi-persian-rtl-bundle</span></div>
+          <div class="rtl">۳. اجرا کن <span class="en">npm run check</span> تا همه تست‌ها سبز شوند</div>
+          <div class="rtl">۴. پچ باید بعد از هر بروزرسانی Pi دوباره اعمال شود</div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip ok">native BiDi</span>
+        <span class="chip">RLI / PDI isolation</span>
+        <span class="chip">ZWNJ safe</span>
+        <span class="chip">caret corrected</span>
+        <span class="chip">apply / check / restore</span>
+        <span class="chip warn">re-apply after Pi update</span>
+      </div>
+
+      <div class="foot">
+        <span class="chip">MIT</span>
+        <span class="chip">no runtime dependencies</span>
+        <span class="chip">pi-package</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

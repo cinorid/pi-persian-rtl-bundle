@@ -1,0 +1,60 @@
+{
+  "name": "pi-persian-rtl-bundle",
+  "version": "1.0.0",
+  "description": "Persian/Farsi RTL support for Pi 1.0+ that patches the REAL runtime bundle (dist/bundle/chunks/*.js), not the unused node_modules pi-tui copy.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "persian",
+    "farsi",
+    "fa-IR",
+    "rtl",
+    "bidi",
+    "terminal"
+  ],
+  "license": "MIT",
+  "author": "AhmadReza Saghari <cinorid@gmail.com> (https://github.com/cinorid)",
+  "homepage": "https://github.com/cinorid/pi-persian-rtl-bundle#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cinorid/pi-persian-rtl-bundle.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cinorid/pi-persian-rtl-bundle/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/persian-rtl.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/cinorid/pi-persian-rtl-bundle/main/docs/preview.png"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "bin": {
+    "pi-persian-rtl-bundle": "bin/pi-persian-rtl-bundle.cjs"
+  },
+  "files": [
+    "extensions",
+    "bin",
+    "lib",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "REPORT-UPSTREAM.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check lib/bidi-source.cjs && node --check lib/bundle-locate.cjs && node --check lib/patch.cjs && node --check bin/pi-persian-rtl-bundle.cjs && npm test"
+  }
+}
