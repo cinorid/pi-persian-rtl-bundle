@@ -137,15 +137,36 @@ test('injected helpers work inside the real bundle module', { skip: !bundleFile 
     assert.equal(typeof mod.applyBidiTerminalOutput, 'function');
     assert.equal(typeof mod.piFaCaretColumn, 'function');
 
-    const out = mod.applyBidiTerminalOutput('سلام دنیا', 40);
-    assert.equal(out, ' '.repeat(31) + RLI + 'سلام دنیا' + PDI);
+    const savedMode = process.env.PI_PERSIAN_RTL_MODE;
+    try {
+      // Native mode: logical order + isolation, for terminals with BiDi.
+      process.env.PI_PERSIAN_RTL_MODE = 'native';
+      const out = mod.applyBidiTerminalOutput('سلام دنیا', 40);
+      assert.equal(out, ' '.repeat(31) + RLI + 'سلام دنیا' + PDI);
 
-    // LTR-first lines must pass through untouched.
-    assert.equal(mod.applyBidiTerminalOutput('hello سلام', 40), 'hello سلام');
+      // LTR-first lines must pass through untouched.
+      assert.equal(mod.applyBidiTerminalOutput('hello سلام', 40), 'hello سلام');
 
-    // Caret math uses the bundle's own visibleWidth.
-    assert.equal(mod.piFaCaretColumn('', 'سلام', 40), 40);
-    assert.equal(mod.piFaCaretColumn('سلام', 'سلام', 40), 36);
+      // Caret math uses the bundle's own visibleWidth.
+      assert.equal(mod.piFaCaretColumn('', 'سلام', 40), 40);
+      assert.equal(mod.piFaCaretColumn('سلام', 'سلام', 40), 36);
+
+      // Visual mode: application-side reorder, for terminals without BiDi.
+      process.env.PI_PERSIAN_RTL_MODE = 'visual';
+      process.env.PI_PERSIAN_RTL_ALIGN = 'left';
+      assert.equal(mod.applyBidiTerminalOutput('سلام', 40), 'مالس');
+
+      // Both modes right-align a line the layout frame already padded.
+      delete process.env.PI_PERSIAN_RTL_ALIGN;
+      process.env.PI_PERSIAN_RTL_MODE = 'native';
+      const framed = mod.applyBidiTerminalOutput('سلام دنیا' + ' '.repeat(31), 40);
+      assert.equal(framed, ' '.repeat(31) + RLI + 'سلام دنیا' + PDI);
+    }
+    finally {
+      if (savedMode === undefined) delete process.env.PI_PERSIAN_RTL_MODE;
+      else process.env.PI_PERSIAN_RTL_MODE = savedMode;
+      delete process.env.PI_PERSIAN_RTL_ALIGN;
+    }
   }
   finally {
     fs.rmSync(probe, { force: true });

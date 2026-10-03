@@ -79,9 +79,35 @@ not clobber a newer Pi build. It only falls back to the backup with `--force`.
 
 | Env var | Values | Default | Effect |
 |---|---|---|---|
-| `PI_PERSIAN_RTL_MODE` | `native` \| `visual` \| `off` | `native` | `native` keeps logical order and lets the terminal's BiDi engine work. `visual` reorders in-process (terminal without BiDi) and **drops ANSI styling**. `off` is a pass-through. |
-| `PI_PERSIAN_RTL_ALIGN` | `right` \| `left` | `right` | Right-align Persian-first lines by prepending padding. `left` adds no padding. |
+| `PI_PERSIAN_RTL_MODE` | `native` \| `visual` \| `off` | **auto-detected** | See below. |
+| `PI_PERSIAN_RTL_ALIGN` | `right` \| `left` | `right` | Right-align Persian-first lines. `left` adds no padding. |
 | `PI_PERSIAN_RTL_CARET` | `on` \| `off` | `on` | Correct the caret column for padding + RTL mirroring. |
+| `PI_PERSIAN_RTL_TERMINAL_BIDI` | `true` \| `false` | unset | Force the terminal-capability probe for auto mode. |
+
+### Which mode do I need?
+
+This is the part that bites everyone, so it is detected rather than assumed.
+
+| Mode | Use when | Renders |
+|---|---|---|
+| `native` | The terminal implements the Unicode Bidirectional Algorithm | logical order + RLI/PDI isolation; the terminal reorders |
+| `visual` | The terminal does **not** implement BiDi | application-side reorder, colour preserved |
+| `off` | You want pi to leave output alone | unchanged |
+
+Getting this wrong is visible either way: `native` on a BiDi-less terminal shows
+the text **reversed**, and `visual` on a BiDi-capable terminal **double-reverses**
+it.
+
+**Auto-detection.** With no explicit `PI_PERSIAN_RTL_MODE`, the mode is chosen
+from the terminal:
+
+* `WT_SESSION` / `WT_PROFILE_ID` set (Windows Terminal), or `process.platform === "win32"` → **`visual`**
+* everything else → **`native`**
+
+Windows Terminal does not implement BiDi — [microsoft/terminal#538](https://github.com/microsoft/terminal/issues/538)
+has been open in the Backlog since 2019 — and neither does conhost, so on
+Windows `native` would leave text reversed. Override the probe with
+`PI_PERSIAN_RTL_TERMINAL_BIDI=true|false`, or just set the mode explicitly.
 
 ### Native mode
 
@@ -92,25 +118,41 @@ not clobber a newer Pi build. It only falls back to the backup with `--force`.
 * keeps ZWNJ and Persian digits intact;
 * right-aligns Persian-first lines.
 
-## The caret problem
+### Visual mode
+
+* reorders graphemes in-process so a BiDi-less terminal shows correct RTL;
+* **preserves ANSI colour** by carrying the escape state with each grapheme;
+* is an approximation for mixed lines: Latin runs stay intact, Persian runs are
+  reversed, but a line interleaving both can still be imperfect.
+
+## The caret and alignment problem
 
 Pi's render order is:
 
 ```
-render()  ->  compositeOverlays()  ->  extractCursorPosition()  ->  applyLineResets()
+render()  ->  renderLayoutFrame()  ->  extractCursorPosition()  ->  applyLineResets()
 ```
 
-Right-aligning means adding padding inside `applyLineResets()`, i.e. **after**
-the caret column has already been computed. Naively that shifts the text out
-from under the caret. Additionally, an RTL paragraph mirrors glyph order, so a
-logical caret at index `k` lands at visual column `total - k`:
+Two consequences, both handled here:
+
+**1. The line is already full width.** Pi's layout frame
+(`renderLayoutFrame` → `paintBox`) pads every line out to the terminal width
+*before* `applyLineResets` runs. A naive `columns - visibleWidth(line)` padding
+is therefore always `0`, which is why a first attempt at this produced no
+right-alignment at all. The trailing padding is **relocated** to the front
+rather than added, so a bare line and a frame-padded line produce identical
+output.
+
+**2. The caret is computed before padding is applied.** So padding shifts the
+text out from under the caret. Additionally, an RTL paragraph mirrors glyph
+order, so a logical caret at index `k` lands at visual column `total - k`:
 
 ```
 logical 0 (before the first char) -> right edge of the content
 logical n (after the last char)   -> left edge of the content
 ```
 
-This package patches `extractCursorPosition()` too, so the caret is computed as
+`extractCursorPosition()` is patched too, so the caret is computed as
 `pad + (total - logical)` for RTL-first lines. Set `PI_PERSIAN_RTL_CARET=off` if
 your terminal disagrees, or `PI_PERSIAN_RTL_ALIGN=left` to remove padding
 entirely.
@@ -131,7 +173,7 @@ conflict with `pi-persian-rtl` on a modern install.
 ## Development
 
 ```sh
-npm test     # 22 tests, including a probe that loads the real patched chunk
+npm test     # 34 tests, including a probe that loads the real patched chunk
 npm run check
 ```
 

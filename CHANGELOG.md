@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.1.0
+
+Two bugs that made Persian still render wrong in a real terminal, both found by
+screenshotting the live TUI in Windows Terminal.
+
+- **Right-alignment never happened.** Pi's layout frame
+  (`renderLayoutFrame` -> `paintBox`) pads every line out to the terminal width
+  *before* `applyLineResets()` runs, so `columns - visibleWidth(line)` was
+  always `0`. Trailing padding is now relocated to the front instead of added,
+  and a bare line and a frame-padded line produce identical output.
+- **Mode default was wrong for most terminals.** Windows Terminal does not
+  implement the Unicode Bidirectional Algorithm (microsoft/terminal#538, open
+  since 2019) and neither does conhost, so `native` mode's RLI/PDI were inert
+  and Persian stayed reversed. The mode is now auto-detected: Windows Terminal
+  / win32 -> `visual`, elsewhere -> `native`. Explicit
+  `PI_PERSIAN_RTL_MODE` still wins; `PI_PERSIAN_RTL_TERMINAL_BIDI=true|false`
+  overrides just the probe.
+- **Visual mode no longer discards colour.** It reorders graphemes while
+  carrying the ANSI state with each one, so a BiDi-less terminal keeps syntax
+  highlighting instead of losing all styling.
+- **Upgrade fix:** the patch start marker is now matched by its
+  version-independent prefix. Bumping the version previously made an older
+  patch block unrecognisable, so re-applying left two copies of the helpers and
+  the bundle failed to load with "Identifier already declared".
+- Test count 22 -> 34.
+
 ## 1.0.1
 
 - **Fix package-root resolution when a package's `exports` map blocks
