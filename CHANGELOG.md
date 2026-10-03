@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.1
+
+- **Fix package-root resolution when a package's `exports` map blocks
+  `./package.json`.** Pi 1.0 declares such a map, so
+  `require.resolve('@earendil-works/pi-coding-agent/package.json')` always threw
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. `piPackageRoots()` depended on that call, so
+  its primary discovery path never worked for Pi 1.0 and only the ancestor-walk
+  fallback was finding the install. `resolvePackageRoot()` now resolves the
+  package entry point and walks up to the directory whose `package.json`
+  declares the name. The require is injectable, so the walk-up is unit-tested
+  against a synthetic package tree.
+- CI: pin the Pi version per Node version and assert the expected runtime
+  layout. Pi 1.0.0 requires `node >= 22.19.0`, so on Node 20 npm installs
+  0.99.2, which has no bundle at all.
+- CI: exercise the pre-1.0 legacy patch path against a real Pi 0.99.2 install,
+  by falling back to a pristine live install when upstream's `.bak` files are
+  absent.
+- Test count 20 -> 22.
+
 ## 1.0.0
 
 Initial release.

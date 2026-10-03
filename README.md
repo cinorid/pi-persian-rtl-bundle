@@ -131,7 +131,7 @@ conflict with `pi-persian-rtl` on a modern install.
 ## Development
 
 ```sh
-npm test     # 20 tests, including a probe that loads the real patched chunk
+npm test     # 22 tests, including a probe that loads the real patched chunk
 npm run check
 ```
 

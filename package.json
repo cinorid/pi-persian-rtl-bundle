@@ -1,6 +1,6 @@
 {
   "name": "pi-persian-rtl-bundle",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Persian/Farsi RTL support for Pi 1.0+ that patches the REAL runtime bundle (dist/bundle/chunks/*.js), not the unused node_modules pi-tui copy.",
   "type": "module",
   "keywords": [
