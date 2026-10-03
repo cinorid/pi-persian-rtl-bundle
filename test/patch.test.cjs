@@ -109,19 +109,34 @@ test('injected helpers work inside the real bundle module', { skip: !bundleFile 
 });
 
 // ---------------------------------------------------------------------------
-// Legacy layout (Pi < 1.0) — verified against the pristine upstream backups
+// Legacy layout (Pi < 1.0) — round-tripped against a real legacy install
 // ---------------------------------------------------------------------------
 
 const legacyTarget = targets.legacy[0]?.file;
-const legacyBackups = legacyTarget
-  ? {
-      utils: path.join(legacyTarget, 'utils.js.pi-persian-rtl.bak'),
-      tui: path.join(legacyTarget, 'tui.js.pi-persian-rtl.bak'),
-    }
-  : undefined;
-const haveLegacyFixtures = Boolean(
-  legacyBackups && fs.existsSync(legacyBackups.utils) && fs.existsSync(legacyBackups.tui),
-);
+
+/**
+ * Find a PRISTINE copy of a legacy file to use as a fixture.
+ *
+ * Prefers a backup left by a previous patch; otherwise falls back to the live
+ * file, but only when nothing has patched it yet (a patched file is not a
+ * valid "before" fixture).
+ */
+function pristineLegacyFile(dir, name) {
+  const live = path.join(dir, name);
+  for (const suffix of ['.pi-persian-rtl.bak', '.pi-persian-rtl-bundle.bak']) {
+    const backup = live + suffix;
+    if (fs.existsSync(backup)) return backup;
+  }
+  if (!fs.existsSync(live)) return undefined;
+  const source = fs.readFileSync(live, 'utf8');
+  if (source.includes('PI_PERSIAN_RTL_PATCH_START') || source.includes('PI_PERSIAN_RTL_BUNDLE_PATCH_START'))
+    return undefined;
+  return live;
+}
+
+const legacyUtilsFixture = legacyTarget ? pristineLegacyFile(legacyTarget, 'utils.js') : undefined;
+const legacyTuiFixture = legacyTarget ? pristineLegacyFile(legacyTarget, 'tui.js') : undefined;
+const haveLegacyFixtures = Boolean(legacyUtilsFixture && legacyTuiFixture);
 
 test('legacy helper block exports what the legacy import needs', () => {
   const block = legacyHelperBlock();
@@ -129,13 +144,13 @@ test('legacy helper block exports what the legacy import needs', () => {
   assert.ok(block.includes('export function piFaCaretColumn('));
 });
 
-test('legacy patch applies and reverts against the pristine upstream backup', { skip: !haveLegacyFixtures && 'no legacy fixtures on this machine' }, () => {
+test('legacy patch applies and reverts against a real legacy install', { skip: !haveLegacyFixtures && 'no pristine legacy fixtures on this machine' }, () => {
   const { patchLegacyDir, restoreLegacyDir } = require('../lib/patch.cjs');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-rtl-legacy-'));
   const utils = path.join(dir, 'utils.js');
   const tui = path.join(dir, 'tui.js');
-  const pristineUtils = fs.readFileSync(legacyBackups.utils, 'utf8');
-  const pristineTui = fs.readFileSync(legacyBackups.tui, 'utf8');
+  const pristineUtils = fs.readFileSync(legacyUtilsFixture, 'utf8');
+  const pristineTui = fs.readFileSync(legacyTuiFixture, 'utf8');
   try {
     fs.writeFileSync(utils, pristineUtils, 'utf8');
     fs.writeFileSync(tui, pristineTui, 'utf8');

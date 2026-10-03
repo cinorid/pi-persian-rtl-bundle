@@ -11,13 +11,22 @@ permissions:
 
 jobs:
   test:
-    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    name: test (${{ matrix.os }}, node ${{ matrix.node }}, ${{ matrix.expect }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: [20, 22, 24]
+        include:
+          # Pi 1.0 requires node >= 22.19.0 and ships the bundled runtime.
+          - { os: ubuntu-latest,  node: 22, expect: bundle, pi: "@earendil-works/pi-coding-agent@1" }
+          - { os: ubuntu-latest,  node: 24, expect: bundle, pi: "@earendil-works/pi-coding-agent@1" }
+          - { os: windows-latest, node: 22, expect: bundle, pi: "@earendil-works/pi-coding-agent@1" }
+          - { os: windows-latest, node: 24, expect: bundle, pi: "@earendil-works/pi-coding-agent@1" }
+          # 0.99.2 is the last release supporting node 20, and it uses the
+          # pre-bundle layout (imports @earendil-works/pi-tui from node_modules).
+          # This job exercises the legacy patch path against a real install.
+          - { os: ubuntu-latest,  node: 20, expect: legacy, pi: "@earendil-works/pi-coding-agent@0.99.2" }
+          - { os: windows-latest, node: 20, expect: legacy, pi: "@earendil-works/pi-coding-agent@0.99.2" }
 
     steps:
       - uses: actions/checkout@v4
@@ -31,27 +40,50 @@ jobs:
         run: npm run check
 
       # Install Pi locally (NOT as a dependency) so the integration tests have
-      # a real bundle to read. Deliberately fatal: if this breaks, the patch
-      # anchors need to be re-verified against the new Pi layout.
-      - name: Install Pi locally for integration tests
-        run: npm install --no-save --ignore-scripts @earendil-works/pi-coding-agent
+      # a real install to read. Deliberately fatal: if this breaks, the patch
+      # anchors need to be re-verified against the new layout.
+      - name: Install Pi locally (${{ matrix.pi }})
+        run: npm install --no-save --ignore-scripts ${{ matrix.pi }}
 
-      - name: Confirm the runtime bundle is discovered
-        run: node bin/pi-persian-rtl-bundle.cjs doctor
-
-      - name: Assert doctor found a runtime bundle target
+      - name: Show installed Pi version
         shell: bash
+        run: node -e "console.log('pi', require('@earendil-works/pi-coding-agent/package.json').version)"
+
+      - name: Assert the expected runtime layout was discovered
+        shell: bash
+        env:
+          EXPECT_LAYOUT: ${{ matrix.expect }}
         run: |
           set -euo pipefail
-          out="$(node bin/pi-persian-rtl-bundle.cjs doctor)"
-          echo "$out"
-          grep -A100 "runtime bundle targets" <<< "$out" | grep -q "chunks" \
-            || { echo "::error::no runtime bundle target found — Pi layout changed"; exit 1; }
+          node bin/pi-persian-rtl-bundle.cjs doctor --json > targets.json
+          node -e '
+            const t = require("./targets.json");
+            const expect = process.env.EXPECT_LAYOUT;
+            const fail = (m) => { console.error("::error::" + m); process.exit(1); };
+            console.log("bundle targets:", t.bundle.length, "| legacy targets:", t.legacy.length);
+            if (t.live.length === 0) fail("no live patch target discovered at all");
+            if (expect === "bundle" && t.bundle.length === 0) fail("expected a runtime bundle target, found none");
+            if (expect === "legacy" && t.legacy.length === 0) fail("expected a legacy pi-tui target, found none");
+            console.log("layout OK: " + expect);
+          '
 
       - name: Full test suite (integration tests enabled)
-        run: node --test
+        shell: bash
+        env:
+          EXPECT_LAYOUT: ${{ matrix.expect }}
+        run: |
+          set -euo pipefail
+          node --test > test-output.txt 2>&1 || { cat test-output.txt; exit 1; }
+          tail -12 test-output.txt
+          skipped="$(grep -c '# SKIP' test-output.txt || true)"
+          echo "skipped tests: $skipped"
+          # Bundle jobs have a real Pi 1.x install, so nothing should skip.
+          if [ "$EXPECT_LAYOUT" = "bundle" ] && [ "$skipped" -gt 2 ]; then
+            echo "::error::too many skipped tests ($skipped) — integration tests did not run"
+            exit 1
+          fi
 
-      - name: Apply / check / restore round-trip on the real bundle
+      - name: Apply / check / restore round-trip on the real install
         shell: bash
         run: |
           set -euo pipefail
