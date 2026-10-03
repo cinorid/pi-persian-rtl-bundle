@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # Unit tests only; integration tests skip cleanly with no Pi install.
+      - name: Syntax check and unit tests
+        run: npm run check
+
+      # Install Pi locally (NOT as a dependency) so the integration tests have
+      # a real bundle to read. Deliberately fatal: if this breaks, the patch
+      # anchors need to be re-verified against the new Pi layout.
+      - name: Install Pi locally for integration tests
+        run: npm install --no-save --ignore-scripts @earendil-works/pi-coding-agent
+
+      - name: Confirm the runtime bundle is discovered
+        run: node bin/pi-persian-rtl-bundle.cjs doctor
+
+      - name: Assert doctor found a runtime bundle target
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(node bin/pi-persian-rtl-bundle.cjs doctor)"
+          echo "$out"
+          grep -A100 "runtime bundle targets" <<< "$out" | grep -q "chunks" \
+            || { echo "::error::no runtime bundle target found — Pi layout changed"; exit 1; }
+
+      - name: Full test suite (integration tests enabled)
+        run: node --test
+
+      - name: Apply / check / restore round-trip on the real bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node bin/pi-persian-rtl-bundle.cjs apply
+          node bin/pi-persian-rtl-bundle.cjs check
+          node bin/pi-persian-rtl-bundle.cjs apply
+          node bin/pi-persian-rtl-bundle.cjs restore
+          if node bin/pi-persian-rtl-bundle.cjs check; then
+            echo "::error::check still reports patched after restore"; exit 1
+          fi
+          echo "round-trip OK"
+
+  pack:
+    name: verify npm tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Assert package.json manifest shape
+        run: |
+          node -e '
+            const p = require("./package.json");
+            const fail = (m) => { console.error("FAIL: " + m); process.exit(1); };
+            if (!p.keywords.includes("pi-package")) fail("missing pi-package keyword (pi.dev gallery discovery)");
+            if (!p.pi || !Array.isArray(p.pi.extensions) || p.pi.extensions.length === 0) fail("missing pi.extensions manifest");
+            if (p.license !== "MIT") fail("license must be MIT");
+            if (!p.repository || !p.repository.url) fail("missing repository field");
+            if (!p.bugs || !p.bugs.url) fail("missing bugs field");
+            if (!p.author) fail("missing author field");
+            for (const dep of Object.keys(p.dependencies ?? {})) fail("unexpected runtime dependency: " + dep);
+            console.log("package.json manifest OK");
+          '
+
+      - name: Assert required files are in the tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(npm pack --dry-run 2>&1)"
+          echo "$out"
+          for f in \
+            "extensions/persian-rtl.ts" \
+            "bin/pi-persian-rtl-bundle.cjs" \
+            "lib/patch.cjs" \
+            "lib/bidi-source.cjs" \
+            "lib/bundle-locate.cjs" \
+            "README.md" \
+            "LICENSE"
+          do
+            grep -q "$f" <<< "$out" || { echo "::error::MISSING FROM TARBALL: $f"; exit 1; }
+          done
+          echo "tarball contents OK"
