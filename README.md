@@ -160,6 +160,22 @@ entirely.
 This is an approximation: terminals do not expose their BiDi layout, so lines
 mixing Persian with Latin words can still place the caret imperfectly.
 
+## Text selection
+
+Dragging over Persian text highlights the characters you dragged over, not a
+mirrored copy of them.
+
+Pi applies the selection highlight in `applySelection()` **before**
+`applyLineResets()` reorders the line. The highlight therefore landed on the
+logical characters at the dragged screen columns, and the reorder then carried
+those characters to the opposite side — the highlight appeared mirrored.
+
+Because the reordered line is exactly the mirror of the logical line, the column
+mapping inverts as `lineWidth - 1 - col`. Only the highlight call site is
+patched: the copy path (`getActiveSelectionText()`) reads `previousScreen`, which
+already holds the reordered lines, so its raw column mapping is correct and
+mirroring it again would break copying.
+
 ## Compatibility
 
 | Pi version | Runtime layout | Status |
@@ -173,7 +189,7 @@ conflict with `pi-persian-rtl` on a modern install.
 ## Development
 
 ```sh
-npm test     # 34 tests, including a probe that loads the real patched chunk
+npm test     # 39 tests, including a probe that loads the real patched chunk
 npm run check
 ```
 

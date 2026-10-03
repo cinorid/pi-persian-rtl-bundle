@@ -266,3 +266,74 @@ test('caret column stays logical when alignment is left', () => {
     assert.equal(piFaCaretColumn('سلام', 'سلام', 40), 0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Selection highlight mirroring
+// ---------------------------------------------------------------------------
+
+function sel(startCol, endCol, row = 0) {
+  return { start: { row, col: startCol }, end: { row, col: endCol } };
+}
+
+test('selection is mirrored for an RTL-reordered line', () => {
+  withEnv({}, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    // Visual columns 31..39 hold the whole 9-column Persian text, reversed.
+    const line = 'سلام دنیا' + ' '.repeat(31);
+    const out = piFaMirrorSelection(line, sel(31, 39));
+    // ...which is logical columns 0..8 on the un-reordered line.
+    assert.equal(out.start.col, 0);
+    assert.equal(out.end.col, 8);
+  });
+});
+
+test('selection mirroring is its own inverse', () => {
+  withEnv({}, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    const line = 'سلام دنیا' + ' '.repeat(31);
+    const once = piFaMirrorSelection(line, sel(31, 39));
+    const twice = piFaMirrorSelection(line, once);
+    assert.equal(twice.start.col, 31);
+    assert.equal(twice.end.col, 39);
+  });
+});
+
+test('a partially dragged RTL selection maps to the dragged characters', () => {
+  withEnv({}, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    const line = 'سلام دنیا' + ' '.repeat(31);
+    // Visual 31..34 = the leftmost 4 visual chars = logical indices 5..8.
+    const out = piFaMirrorSelection(line, sel(31, 34));
+    assert.equal(out.start.col, 5);
+    assert.equal(out.end.col, 8);
+  });
+});
+
+test('selection is untouched for LTR-first lines, mode=off, and no selection', () => {
+  withEnv({}, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    const ltr = 'hello سلام' + ' '.repeat(29);
+    assert.deepEqual(piFaMirrorSelection(ltr, sel(1, 5)), sel(1, 5));
+    assert.equal(piFaMirrorSelection('سلام', undefined), undefined);
+  });
+  withEnv({ PI_PERSIAN_RTL_MODE: 'off' }, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    assert.deepEqual(piFaMirrorSelection('سلام', sel(0, 3)), sel(0, 3));
+  });
+});
+
+test('mirroring preserves row, scrollView and boundary', () => {
+  withEnv({}, () => {
+    const { piFaMirrorSelection } = createBidiTestRuntime();
+    const line = 'سلام' + ' '.repeat(36);
+    const input = {
+      start: { row: 3, col: 36, scrollView: { id: 1 } },
+      end: { row: 7, col: 39, scrollView: { id: 1 }, boundary: true },
+    };
+    const out = piFaMirrorSelection(line, input);
+    assert.equal(out.start.row, 3);
+    assert.equal(out.end.row, 7);
+    assert.deepEqual(out.start.scrollView, { id: 1 });
+    assert.equal(out.end.boundary, true);
+  });
+});

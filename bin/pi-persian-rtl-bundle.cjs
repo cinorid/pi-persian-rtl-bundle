@@ -97,6 +97,7 @@ function printCheck(result, json) {
       console.log(`[pi-persian-rtl-bundle]   helpers injected: ${entry.helpersInjected ? 'yes' : 'no'}`);
       console.log(`[pi-persian-rtl-bundle]   call site patched: ${entry.callSitePatched ? 'yes' : 'no'}`);
       console.log(`[pi-persian-rtl-bundle]   caret patched: ${entry.caretPatched ? 'yes' : 'no'}`);
+      console.log(`[pi-persian-rtl-bundle]   selection patched: ${entry.selectionPatched ? 'yes' : 'no'}`);
     }
   }
   if (!result.livePatched) {
