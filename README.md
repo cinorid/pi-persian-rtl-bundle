@@ -54,6 +54,16 @@ pi install npm:pi-persian-rtl-bundle
 Either way, **restart Pi** — the patch rewrites the bundle on disk, so it only
 takes effect in a new process.
 
+> **Upgrading from 1.0.x:** remove the old package first
+> (`pi remove npm:pi-persian-rtl-bundle`), then install the new version. 1.0.x
+> matched its patch markers on the full versioned string, so running it against
+> a bundle carrying a newer block appended a second copy of the helpers and Pi
+> failed to start with `Identifier 'PI_FA_SEGMENTER' has already been
+> declared`. 1.1.0+ strips by a version-independent prefix, so this cannot
+> happen again, and 1.2.0 refuses to write a file with two blocks. If you do hit
+> it, restore the backup:
+> `cp "<chunk>.js.pi-persian-rtl-bundle.bak" "<chunk>.js"`.
+
 ## Commands
 
 ```
@@ -189,7 +199,7 @@ conflict with `pi-persian-rtl` on a modern install.
 ## Development
 
 ```sh
-npm test     # 39 tests, including a probe that loads the real patched chunk
+npm test     # 41 tests, including a probe that loads the real patched chunk
 npm run check
 ```
 

@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.2.0
+
+- **Fix mirrored text selection.** Pi applies the selection highlight in
+  `applySelection()` *before* `applyLineResets()` reorders the line, so the
+  highlight landed on the logical characters at the dragged screen columns and
+  the reorder then carried them to the opposite side — you selected Persian
+  text and the highlight appeared mirrored elsewhere. The reordered line is
+  exactly the mirror of the logical line, so the column mapping inverts as
+  `lineWidth - 1 - col`; only the highlight call site is patched.
+- The copy path (`getActiveSelectionText()`) is deliberately **not** patched. It
+  reads `previousScreen`, which already holds the reordered lines, so its raw
+  column mapping was already correct and mirroring it again would break
+  copying.
+- **Refuse to write a file with two helper blocks.** `assertSingleHelperBlock()`
+  now guards every write, because this failure mode is not theoretical — see
+  the incident note below.
+- Test count 34 -> 41, including a regression test that reproduces the incident
+  and proves re-patching repairs the file.
+
+### Incident: 1.0.1 could brick Pi at startup
+
+Versions before 1.1.0 matched their patch markers on the **full versioned**
+string. Running 1.0.1 against a bundle that already carried a newer block meant
+it could not strip that block, so it appended a second copy of the helpers:
+
+```
+SyntaxError: Identifier 'PI_FA_SEGMENTER' has already been declared
+    at chunk-2KTBZM5G.js:550
+```
+
+Pi then failed to start at all — including `pi remove`, which loads the bundle
+before it can uninstall anything. Recovery is to restore the backup:
+
+```sh
+cp "<chunk>.js.pi-persian-rtl-bundle.bak" "<chunk>.js"
+```
+
+1.1.0 fixed the cause by matching markers on a version-independent prefix, so
+any version can strip any other version's block. 1.2.0 adds the write guard.
+
+**If you have any 1.0.x installed, remove it before applying a newer patch.**
+
 ## 1.1.0
 
 Two bugs that made Persian still render wrong in a real terminal, both found by

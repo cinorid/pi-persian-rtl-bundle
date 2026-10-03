@@ -111,6 +111,44 @@ test('patch refuses to guess when an anchor is missing', () => {
   assert.throws(() => patchBundleSource('const x = 1;'), /anchor/i);
 });
 
+// ---------------------------------------------------------------------------
+// Regression: the 1.0.1 incident. An older build matched its patch markers on
+// the FULL versioned string, so it could not strip a newer block, appended a
+// second copy of the helpers, and Pi died at startup with
+// "Identifier 'PI_FA_SEGMENTER' has already been declared".
+// ---------------------------------------------------------------------------
+
+test('an older-version block is stripped, not duplicated', { skip: !bundleFile && 'no runtime bundle on this machine' }, () => {
+  const clean = patchBundleSource(readPristine());
+  const olderBlock = [
+    '// PI_PERSIAN_RTL_BUNDLE_PATCH_START v1.0.0',
+    'const PI_FA_SEGMENTER = new Intl.Segmenter("fa", { granularity: "grapheme" });',
+    '// PI_PERSIAN_RTL_BUNDLE_PATCH_END',
+    '',
+  ].join('\n');
+
+  // Exactly what 1.0.1 wrote: the newer block survived, its own was appended.
+  const corrupted = clean + olderBlock;
+  assert.equal(corrupted.split('PI_PERSIAN_RTL_BUNDLE_PATCH_START').length - 1, 2);
+
+  const repaired = patchBundleSource(corrupted);
+  assert.equal(
+    repaired.split('PI_PERSIAN_RTL_BUNDLE_PATCH_START').length - 1,
+    1,
+    're-patching must leave exactly one helper block',
+  );
+  assert.equal(repaired, clean, 're-patching repairs the file to a clean single-block patch');
+  assert.equal(repaired.split('PI_FA_SEGMENTER = new Intl').length - 1, 1);
+});
+
+test('the patcher refuses to emit a file with two helper blocks', () => {
+  const { assertSingleHelperBlock } = require('../lib/patch.cjs');
+  const two = '// PI_PERSIAN_RTL_BUNDLE_PATCH_START v1.0.0\n// PI_PERSIAN_RTL_BUNDLE_PATCH_START v1.2.0\n';
+  assert.throws(() => assertSingleHelperBlock(two, 'test'), /expected exactly 1 helper block but found 2/);
+  assert.throws(() => assertSingleHelperBlock('no markers here', 'test'), /found 0/);
+  assert.doesNotThrow(() => assertSingleHelperBlock('// PI_PERSIAN_RTL_BUNDLE_PATCH_START v1.2.0\n', 'test'));
+});
+
 test('patched bundle is still valid ESM', { skip: !bundleFile && 'no runtime bundle on this machine' }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-rtl-esm-'));
   const file = path.join(dir, 'chunk.mjs');
