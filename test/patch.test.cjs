@@ -13,7 +13,7 @@ const {
   unpatchBundleSource,
   legacyHelperBlock,
 } = require('../lib/patch.cjs');
-const { findTargets, isTuiChunk, BUNDLE_IDENTITY_ANCHORS } = require('../lib/bundle-locate.cjs');
+const { findTargets, isTuiChunk, BUNDLE_IDENTITY_ANCHORS, resolvePackageRoot } = require('../lib/bundle-locate.cjs');
 const { PERSIAN_BIDI_PATCH_START } = require('../lib/bidi-source.cjs');
 
 const targets = findTargets();
@@ -30,6 +30,50 @@ function readBundle() {
 function readPristine() {
   return unpatchBundleSource(readBundle());
 }
+
+test('resolvePackageRoot walks up when an exports map blocks ./package.json', () => {
+  const { createRequire } = require('node:module');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-rtl-exports-'));
+  try {
+    const pkgDir = path.join(dir, 'node_modules', 'fake-exports-pkg');
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({
+        name: 'fake-exports-pkg',
+        version: '1.0.0',
+        type: 'module',
+        exports: { '.': './index.js' },
+      }),
+    );
+    fs.writeFileSync(path.join(pkgDir, 'index.js'), 'export default 1;\n');
+
+    const fakeRequire = createRequire(path.join(dir, 'probe.cjs'));
+
+    // The naive approach is blocked by the exports map...
+    assert.throws(() => fakeRequire.resolve('fake-exports-pkg/package.json'));
+
+    // ...and the walk-up still finds the root.
+    const root = resolvePackageRoot('fake-exports-pkg', fakeRequire);
+    assert.ok(root, 'expected resolvePackageRoot to walk up to the package root');
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).name,
+      'fake-exports-pkg',
+    );
+  }
+  finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolvePackageRoot resolves the real Pi root when locally installed', { skip: !bundleFile && 'no runtime bundle on this machine' }, () => {
+  const root = resolvePackageRoot('@earendil-works/pi-coding-agent');
+  // Pi may be installed globally, in which case it is not resolvable from this
+  // checkout at all - that is what the fallback search roots are for.
+  if (!root) return;
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).name, '@earendil-works/pi-coding-agent');
+  assert.ok(fs.existsSync(path.join(root, 'dist', 'bundle', 'chunks')));
+});
 
 test('locator finds the live runtime bundle, not just node_modules', { skip: !bundleFile && 'no runtime bundle on this machine' }, () => {
   assert.ok(bundleFile, 'expected a runtime bundle target');

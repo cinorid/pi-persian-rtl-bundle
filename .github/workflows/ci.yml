@@ -47,7 +47,15 @@ jobs:
 
       - name: Show installed Pi version
         shell: bash
-        run: node -e "console.log('pi', require('@earendil-works/pi-coding-agent/package.json').version)"
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            // Read directly: Pi has an exports map that blocks the
+            // ./package.json subpath, so require() cannot resolve it.
+            const p = path.join("node_modules", "@earendil-works", "pi-coding-agent", "package.json");
+            console.log("installed pi:", JSON.parse(fs.readFileSync(p, "utf8")).version);
+          '
 
       - name: Assert the expected runtime layout was discovered
         shell: bash
